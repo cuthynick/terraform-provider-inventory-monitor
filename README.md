@@ -31,7 +31,7 @@ All resources support import via `terraform import <resource>.<name> <id>`.
 terraform {
   required_providers {
     inventorymonitor = {
-      source  = "nickcuthbert/inventory-monitor"
+      source  = "your-namespace/inventory-monitor"
       version = "~> 0.1"
     }
   }
@@ -87,7 +87,7 @@ resource "inventorymonitor_asset" "switch_01" {
 ## Building from Source
 
 ```bash
-git clone https://github.com/nickcuthbert/terraform-provider-inventory-monitor.git
+git clone https://github.com/cuthynick/terraform-provider-inventory-monitor.git
 cd terraform-provider-inventory-monitor
 go build ./...
 ```
@@ -95,7 +95,7 @@ go build ./...
 To install locally using a [filesystem mirror](https://developer.hashicorp.com/terraform/cli/config/config-file#filesystem_mirror):
 
 ```bash
-PLUGIN_DIR=~/.terraform.d/plugins/registry.terraform.io/nickcuthbert/inventory-monitor/0.1.0/$(go env GOOS)_$(go env GOARCH)
+PLUGIN_DIR=~/.terraform.d/plugins/registry.terraform.io/your-namespace/inventory-monitor/0.1.0/$(go env GOOS)_$(go env GOARCH)
 mkdir -p "$PLUGIN_DIR"
 go build -o "$PLUGIN_DIR/terraform-provider-inventory-monitor_v0.1.0" .
 ```
@@ -106,10 +106,10 @@ Add to `~/.terraformrc`:
 provider_installation {
   filesystem_mirror {
     path    = "/home/youruser/.terraform.d/plugins"
-    include = ["nickcuthbert/inventory-monitor"]
+    include = ["your-namespace/inventory-monitor"]
   }
   direct {
-    exclude = ["nickcuthbert/inventory-monitor"]
+    exclude = ["your-namespace/inventory-monitor"]
   }
 }
 ```
