@@ -27,7 +27,7 @@ func (r *ContractorResource) Schema(_ context.Context, _ resource.SchemaRequest,
 		Attributes: map[string]schema.Attribute{
 			"id":          schemaID(),
 			"name":        schemaRequiredString("Contractor contact name."),
-			"tenant_id":   schema.Int64Attribute{Required: true, MarkdownDescription: "NetBox tenant ID."},
+			"tenant_id":   schema.Int64Attribute{Optional: true, MarkdownDescription: "NetBox tenant ID. Omit for no tenant."},
 			"company":     schemaOptionalString("Company name."),
 			"address":     schemaOptionalString("Physical address."),
 			"description": schemaOptionalString("Description."),
@@ -59,23 +59,23 @@ type contractorModel struct {
 }
 
 type contractorAPI struct {
-	ID          int64    `json:"id,omitempty"`
-	Name        string   `json:"name"`
-	Tenant      nestedID `json:"tenant"`
-	Company     string   `json:"company,omitempty"`
-	Address     string   `json:"address,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Comments    string   `json:"comments,omitempty"`
+	ID          int64     `json:"id,omitempty"`
+	Name        string    `json:"name"`
+	Tenant      *nestedID `json:"tenant,omitempty"`
+	Company     string    `json:"company,omitempty"`
+	Address     string    `json:"address,omitempty"`
+	Description string    `json:"description,omitempty"`
+	Comments    string    `json:"comments,omitempty"`
 }
 
 type contractorAPIRead struct {
-	ID          int64    `json:"id"`
-	Name        string   `json:"name"`
-	Tenant      nestedID `json:"tenant"`
-	Company     string   `json:"company"`
-	Address     string   `json:"address"`
-	Description string   `json:"description"`
-	Comments    string   `json:"comments"`
+	ID          int64     `json:"id"`
+	Name        string    `json:"name"`
+	Tenant      *nestedID `json:"tenant"`
+	Company     string    `json:"company"`
+	Address     string    `json:"address"`
+	Description string    `json:"description"`
+	Comments    string    `json:"comments"`
 }
 
 func (r *ContractorResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
@@ -86,7 +86,7 @@ func (r *ContractorResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 	body := contractorAPI{
 		Name:        data.Name.ValueString(),
-		Tenant:      nestedID{ID: data.TenantID.ValueInt64()},
+		Tenant:      tenantRef(data.TenantID),
 		Company:     data.Company.ValueString(),
 		Address:     data.Address.ValueString(),
 		Description: data.Description.ValueString(),
@@ -99,7 +99,7 @@ func (r *ContractorResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 	data.ID = types.Int64Value(result.ID)
 	data.Name = types.StringValue(result.Name)
-	data.TenantID = types.Int64Value(result.Tenant.ID)
+	data.TenantID = tenantIDValue(result.Tenant)
 	data.Company = types.StringValue(result.Company)
 	data.Address = types.StringValue(result.Address)
 	data.Description = types.StringValue(result.Description)
@@ -119,7 +119,7 @@ func (r *ContractorResource) Read(ctx context.Context, req resource.ReadRequest,
 		return
 	}
 	data.Name = types.StringValue(result.Name)
-	data.TenantID = types.Int64Value(result.Tenant.ID)
+	data.TenantID = tenantIDValue(result.Tenant)
 	data.Company = types.StringValue(result.Company)
 	data.Address = types.StringValue(result.Address)
 	data.Description = types.StringValue(result.Description)
@@ -135,7 +135,7 @@ func (r *ContractorResource) Update(ctx context.Context, req resource.UpdateRequ
 	}
 	body := contractorAPI{
 		Name:        data.Name.ValueString(),
-		Tenant:      nestedID{ID: data.TenantID.ValueInt64()},
+		Tenant:      tenantRef(data.TenantID),
 		Company:     data.Company.ValueString(),
 		Address:     data.Address.ValueString(),
 		Description: data.Description.ValueString(),
@@ -167,4 +167,21 @@ func (r *ContractorResource) ImportState(ctx context.Context, req resource.Impor
 		return
 	}
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("id"), id)...)
+}
+
+// tenantRef returns nil when no tenant is configured; the field is then omitted.
+// The plugin's serializer rejects "tenant": null even though the model allows it,
+// so an existing tenant can't be cleared via the API (use nbshell; see terraform/netbox/CLAUDE.md).
+func tenantRef(id types.Int64) *nestedID {
+	if id.IsNull() || id.IsUnknown() || id.ValueInt64() == 0 {
+		return nil
+	}
+	return &nestedID{ID: id.ValueInt64()}
+}
+
+func tenantIDValue(t *nestedID) types.Int64 {
+	if t == nil {
+		return types.Int64Null()
+	}
+	return types.Int64Value(t.ID)
 }

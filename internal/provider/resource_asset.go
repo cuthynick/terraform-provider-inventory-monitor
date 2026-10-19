@@ -234,16 +234,21 @@ func (r *AssetResource) Delete(ctx context.Context, req resource.DeleteRequest, 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	// The plugin raises ProtectedError when order_contract is set on the asset.
-	// Null it out first so the DELETE succeeds, then the contract can also be deleted.
+	assetPath := "/assets/" + strconv.FormatInt(data.ID.ValueInt64(), 10) + "/"
+	err := r.client.Delete(assetPath)
+	if err == nil {
+		return
+	}
+	// Some plugin versions raise ProtectedError on delete while order_contract is set.
+	// Clear it and retry, but only as a fallback: newer versions make order_contract
+	// required, so clearing it up front fails ("This field may not be null").
 	if !data.OrderContractID.IsNull() && data.OrderContractID.ValueInt64() != 0 {
 		var result assetAPIRead
-		if err := r.client.Update("/assets/"+strconv.FormatInt(data.ID.ValueInt64(), 10)+"/", map[string]any{"order_contract": nil}, &result); err != nil {
-			resp.Diagnostics.AddError("Error clearing asset order_contract before delete", err.Error())
-			return
+		if clearErr := r.client.Update(assetPath, map[string]any{"order_contract": nil}, &result); clearErr == nil {
+			err = r.client.Delete(assetPath)
 		}
 	}
-	if err := r.client.Delete("/assets/" + strconv.FormatInt(data.ID.ValueInt64(), 10) + "/"); err != nil {
+	if err != nil {
 		resp.Diagnostics.AddError("Error deleting asset", err.Error())
 	}
 }
